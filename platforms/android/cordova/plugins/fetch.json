@@ -1,0 +1,10 @@
+{
+  "cordova-plugin-couchbase": {
+    "source": {
+      "type": "local",
+      "path": "/Users/colin/Documents/Cordova/hello/platforms/android/node_modules/cordova-plugin-couchbase"
+    },
+    "is_top_level": true,
+    "variables": {}
+  }
+}
