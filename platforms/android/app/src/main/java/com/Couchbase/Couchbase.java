@@ -1,44 +1,43 @@
 package com.Couchbase;
 
-import org.apache.cordova.CordovaActivity;
+import android.app.Activity;
+import android.content.Context;
+
+import com.couchbase.lite.CouchbaseLite;
+import com.couchbase.lite.CouchbaseLiteException;
+import com.couchbase.lite.DataSource;
+import com.couchbase.lite.Database;
+import com.couchbase.lite.DatabaseConfiguration;
+import com.couchbase.lite.Dictionary;
+import com.couchbase.lite.Document;
+import com.couchbase.lite.Meta;
+import com.couchbase.lite.MutableDocument;
+import com.couchbase.lite.Query;
+import com.couchbase.lite.QueryBuilder;
+import com.couchbase.lite.Result;
+import com.couchbase.lite.ResultSet;
+import com.couchbase.lite.SelectResult;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaInterface;
 import org.apache.cordova.CordovaPlugin;
-import org.apache.cordova.CallbackContext;
-
 import org.apache.cordova.CordovaWebView;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import android.app.Activity;
-import android.content.Context;
-import android.util.Log;
-
-import com.couchbase.lite.CouchbaseLiteException;
-import com.couchbase.lite.Database;
-import com.couchbase.lite.Document;
-import com.couchbase.lite.Manager;
-import com.couchbase.lite.DatabaseOptions;
-import com.couchbase.lite.Query;
-import com.couchbase.lite.QueryEnumerator;
-import com.couchbase.lite.QueryOptions;
-import com.couchbase.lite.QueryRow;
-import com.couchbase.lite.android.AndroidContext;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-
 import java.io.IOException;
-import java.net.ProxySelector;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.ProtocolException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
-import javax.sql.DataSource;
-
-import io.cordova.hellocordova.MainActivity;
+import javax.net.ssl.HttpsURLConnection;
 
 /**
  * This class echoes a string called from JavaScript.
@@ -47,12 +46,11 @@ public class Couchbase extends CordovaPlugin {
 
 
     static protected Database database = null;
-    static protected Manager manager;
-    DatabaseOptions opt = null;
-    URL url = null;
+    static protected DatabaseConfiguration config = null;
     Context context;
     private Activity activity;
     private String uuid;
+
 
 
     @Override
@@ -60,13 +58,8 @@ public class Couchbase extends CordovaPlugin {
         super.initialize(cordova, webView);
         context = cordova.getContext();
         activity = cordova.getActivity();
-        try {
-            manager = new Manager(new AndroidContext(context), null);
-        }
-        catch (IOException e) {
-            e.printStackTrace();
+        CouchbaseLite.init(context);
 
-        }
     }
 
     @Override
@@ -85,69 +78,78 @@ public class Couchbase extends CordovaPlugin {
        }
        else if (action.equals("query")){
            String dbName = args.getString(0);
-           this.query(dbName,callbackContext);
+           this.getAllDocuments(dbName,callbackContext);
+       }
+       else if(action.equals("uploadDocuments")){
+
+           URL url = null;
+           try {
+               url = new URL(args.getString(0));
+           } catch (MalformedURLException e) {
+               e.printStackTrace();
+           }
+           //JSONObject doc = args.getJSONObject(1);
+
+           this.uploadDocuments(url,callbackContext);
        }
         return false;
+    }
+
+    private long getDatabaseSize(String dbName, CallbackContext callbackContext){
+        config = new DatabaseConfiguration();
+        try {
+            database = new Database(dbName, config);
+        } catch (CouchbaseLiteException e) {
+            e.printStackTrace();
+        }
+        return database.getCount();
     }
 
 
 
     private void createNewDatabase(String dbName, CallbackContext callbackContext){
-
-        opt = new DatabaseOptions();
-        opt.setCreate(true);
+        config = new DatabaseConfiguration();
 
         try {
-
-            database = manager.openDatabase(dbName,opt);
-            Log.d("SmartFall","Created database");
-            callbackContext.success("Created database: " + dbName);
-
+            database = new Database(dbName,config);
         } catch (CouchbaseLiteException e) {
             e.printStackTrace();
         }
+        callbackContext.success((int) database.getCount());
 
     }
 
 
     private void insertDocument(String dbName,JSONObject doc, CallbackContext callbackContext) throws JSONException {
 
-        try {
-            database = manager.getDatabase(dbName);
 
-        }catch (CouchbaseLiteException e) {
+        config = new DatabaseConfiguration();
+
+        //open database
+        try {
+            database = new Database(dbName,config);
+        } catch (CouchbaseLiteException e) {
             e.printStackTrace();
         }
 
-        Document document = database.createDocument();
-
-        Map<String, Object> prop= null;
-
+        //map json doc to map
+        Map<String,Object> prop = null;
         try {
-
-            prop = new ObjectMapper().readValue(doc.toString(), HashMap.class);
-
+             prop = new ObjectMapper().readValue(doc.toString(), HashMap.class);
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+        //Create the document
+        MutableDocument mutableDocument = new MutableDocument(prop);
+
         try {
-
-            document.putProperties(prop);
-
+            database.save(mutableDocument);
         } catch (CouchbaseLiteException e) {
             e.printStackTrace();
         }
 
-        String m = database.toString();
-        String k = document.getId();
-        //String d = document.getProperties().toString();
-        Document d = database.getDocument(k);
-        m = k + " " + d;
-        QueryOptions queryOptions = new QueryOptions();
-        queryOptions.setLimit(1);
-
-        callbackContext.success(database.getDocumentCount());
-
+        callbackContext.success(mutableDocument.getId());
 
 
     }
@@ -155,51 +157,103 @@ public class Couchbase extends CordovaPlugin {
 
 
 
-    private void uploadDocuments(String dbName, URL url, CallbackContext callbackContext){
+    private void uploadDocuments(URL url, CallbackContext callbackContext) {
 
-
-    }
-
-    private void query(String dbName,CallbackContext callbackContext){
-
+        HttpURLConnection connection = null;
         try {
-            database = manager.getDatabase(dbName);
-
-        }catch (CouchbaseLiteException e) {
+            connection = (HttpURLConnection) url.openConnection();
+        } catch (IOException e) {
             e.printStackTrace();
         }
 
-
-
-        QueryOptions queryOptions = new QueryOptions();
-        Map<String, Object> docs = null;
         try {
-            docs = database.getAllDocs(queryOptions);
-        } catch (CouchbaseLiteException e) {
+            connection.setRequestMethod("POST");
+
+        } catch (ProtocolException e) {
             e.printStackTrace();
         }
 
-        //find key
-        String key = "";
-        List<Map<String,Object>> rowsAsMaps = new ArrayList<Map<String,Object>>();
-        List<QueryRow> rows = (List<QueryRow>) docs.get("rows");
-        if (rows != null) {
-            for (QueryRow row : rows) {
-                key = row.getDocumentId();
+        ArrayList<JSONObject> objects = getAllDocuments("userlogs",callbackContext);
+
+
+        connection.setDoOutput(true);
+        connection.setRequestProperty("Accept-Charset", "UTF-8");
+
+        try {
+            connection.getOutputStream().write(objects.toString().getBytes());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        int responseCode = 0;
+        try {
+            responseCode = connection.getResponseCode();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        // if upload is successful purge all documents from the local database
+        if (responseCode == HttpURLConnection.HTTP_OK){
+            for(JSONObject object: objects) {
+                try {
+                    database.purge(objects.get(0).getString("id"));
+                } catch (CouchbaseLiteException e) {
+                    e.printStackTrace();
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
             }
+
         }
 
-        //get the document
-        Document o = database.getDocument(key);
-        JSONObject jsonObject = null;
+
+
+    }
+
+    private ArrayList<JSONObject> getAllDocuments(String dbName,CallbackContext callbackContext){
+
+        config = new DatabaseConfiguration();
+
+        //open database
         try {
-            jsonObject = new JSONObject(o.getUserProperties().toString());
-        } catch (JSONException e) {
+            database = new Database(dbName,config);
+        } catch (CouchbaseLiteException e) {
             e.printStackTrace();
         }
 
-        callbackContext.success(o.getUserProperties().toString());
+        Query query = QueryBuilder.select(SelectResult.expression(Meta.id),SelectResult.all()).from(DataSource.database(database));
+        ResultSet results = null;
+        try {
+            results = query.execute();
+        } catch (CouchbaseLiteException e) {
+            e.printStackTrace();
+        }
 
+        String id="";
+        JSONObject jsonObject = null;
+        JSONObject keys = null;
+        ArrayList<JSONObject> objects = new ArrayList<>();
+
+        for (Result result : results.allResults()){
+            id =  result.getValue("id").toString();
+
+            jsonObject = new JSONObject();
+            keys = new JSONObject(result.getDictionary(dbName).toMap());
+
+            try {
+                jsonObject.put("id", id);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+            try {
+                jsonObject.put("keys",keys);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+
+            objects.add(jsonObject);
+        }
+
+        return objects;
 
     }
 

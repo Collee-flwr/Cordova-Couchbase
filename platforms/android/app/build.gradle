@@ -358,7 +358,8 @@ dependencies {
     compile "com.android.support:support-annotations:27.+"
     // SUB-PROJECT DEPENDENCIES END
     //implementation 'com.couchbase.lite:couchbase-lite-android:2.1.0'
-    implementation 'com.couchbase.lite:couchbase-lite-android:1.4.1'
+    implementation 'com.couchbase.lite:couchbase-lite-android:2.8.0'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.9.6'
 }
 
 def promptForReleaseKeyPassword() {

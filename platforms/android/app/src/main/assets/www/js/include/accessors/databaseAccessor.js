@@ -10,20 +10,30 @@ exports.setup = function() {
 
 exports.initialize = function() {
 
-       profile = {
-                   "name": "user"
-                 };
 
 
-    var button = document.getElementById("save_button");
-    button.onclick = function(){
-        var user_name = document.getElementById("user_name").value;
-        document.querySelector('#message').innerHTML = user_name;
-    }
 
-    //couchbase.insertDocument("userlogs",profile,function(response){document.querySelector('#message').innerHTML =response;},function(error){console.log(error);});
+    //var button = document.getElementById("save_button");
+    //button.onclick = function(){
+        //var user_name = document.getElementById("user_name").value;
+        //document.querySelector('#message').innerHTML = user_name;
 
-    //couchbase.query("userlogs",function(response){document.querySelector('#message').innerHTML =response;});
+        profile = {
+                    "name": "user",
+                    "age": "27"
+                };
+
+        couchbase.insertDocument("userlogs",profile,function(response){document.querySelector('#message').innerHTML =response;},function(error){console.log(error);});
+    url = "http://192.168.1.209:8081/uploadDocument.php";
+    //url = "http://192.168.1.209:8081/test.php";
+
+    couchbase.uploadDocuments(url,function(response){document.querySelector('#message').innerHTML =response;},function(error){console.log(error);});
+
+    //}//
+
+
+
+
 
     this.send('dataOut');
 };

@@ -8,9 +8,12 @@ module.exports = {
     insertDocument: function (arg0,arg1, success, error) {
         cordova.exec(success, error, 'Couchbase', 'insertDocument', [arg0,arg1]);
     },
-   query: function (arg0, success, error) {
+   getAllDocuments: function (arg0, success, error) {
         cordova.exec(success, error, 'Couchbase', 'query', [arg0]);
-    }
+    },
+   uploadDocuments: function (arg0, success, error) {
+        cordova.exec(success, error, 'Couchbase', 'uploadDocuments', [arg0]);
+   }
 
 };
 });
