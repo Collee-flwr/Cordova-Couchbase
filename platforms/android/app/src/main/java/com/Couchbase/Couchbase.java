@@ -249,7 +249,7 @@ public class Couchbase extends CordovaPlugin {
             } catch (JSONException e) {
                 e.printStackTrace();
             }
-
+            callbackContext.success(jsonObject.toString());
             objects.add(jsonObject);
         }
 

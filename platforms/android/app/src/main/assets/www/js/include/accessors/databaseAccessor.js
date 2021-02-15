@@ -24,11 +24,11 @@ exports.initialize = function() {
                 };
 
         couchbase.insertDocument("userlogs",profile,function(response){document.querySelector('#message').innerHTML =response;},function(error){console.log(error);});
-    url = "http://192.168.1.209:8081/uploadDocument.php";
+   // url = "http://192.168.1.209:8081/uploadDocument.php";
     //url = "http://192.168.1.209:8081/test.php";
 
-    couchbase.uploadDocuments(url,function(response){document.querySelector('#message').innerHTML =response;},function(error){console.log(error);});
-
+    //couchbase.uploadDocuments(url,function(response){document.querySelector('#message').innerHTML =response;},function(error){console.log(error);});
+    couchbase.getAllDocuments("userlogs",function(response){document.querySelector('#message').innerHTML =response;},function(error){console.log(error);});
     //}//
 
 
